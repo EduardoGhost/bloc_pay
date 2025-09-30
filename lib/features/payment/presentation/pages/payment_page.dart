@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../data/payment_repository_impl.dart';
-import '../../domain/use_cases/process_payment.dart';
+import '../../domain/entities/payment_entity.dart';
 import '../bloc/payment_bloc.dart';
 import '../bloc/payment_event.dart';
 import '../bloc/payment_state.dart';
@@ -18,49 +17,70 @@ class _PaymentPageState extends State<PaymentPage> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => PaymentBloc(
-        processPayment: ProcessPayment(PaymentRepositoryImpl()),
-      ),
-      child: Scaffold(
-        appBar: AppBar(title: const Text("BlocPay")),
-        body: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              TextField(
-                controller: _controller,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: "Valor do pagamento"),
-              ),
-              const SizedBox(height: 20),
-              BlocConsumer<PaymentBloc, PaymentState>(
-                listener: (context, state) {
-                  if (state is PaymentSuccess) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text("Pagamento aprovado: \$${state.payment.amount}")),
-                    );
-                  } else if (state is PaymentFailure) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text("Pagamento falhou: ${state.message}")),
-                    );
-                  }
-                },
+    return Scaffold(
+      appBar: AppBar(title: const Text("BlocPay")),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            TextField(
+              controller: _controller,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: "Valor do pagamento"),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                final amount = double.tryParse(_controller.text) ?? 0;
+                if (amount <= 0) return;
+
+                final payment = PaymentEntity(
+                  id: DateTime.now().millisecondsSinceEpoch.toString(),
+                  amount: amount,
+                  date: DateTime.now(),
+                );
+
+                context.read<PaymentBloc>().add(AddPayment(payment));
+                _controller.clear();
+              },
+              child: const Text("Adicionar Pagamento"),
+            ),
+            const SizedBox(height: 20),
+            Expanded(
+              child: BlocBuilder<PaymentBloc, PaymentState>(
                 builder: (context, state) {
-                  if (state is PaymentLoading) {
-                    return const CircularProgressIndicator();
+                  final payments = state is PaymentInitial
+                      ? state.payments
+                      : state is PaymentUpdated
+                      ? state.payments
+                      : <PaymentEntity>[];
+
+                  if (payments.isEmpty) {
+                    return const Center(child: Text("Nenhum pagamento ainda"));
                   }
-                  return ElevatedButton(
-                    onPressed: () {
-                      final amount = double.tryParse(_controller.text) ?? 0;
-                      context.read<PaymentBloc>().add(SubmitPayment(amount));
+
+                  return ListView.builder(
+                    itemCount: payments.length,
+                    itemBuilder: (context, index) {
+                      final payment = payments[index];
+                      return ListTile(
+                        title: Text("\$${payment.amount.toStringAsFixed(2)}"),
+                        subtitle: Text(payment.date.toString()),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete),
+                          onPressed: () {
+                            context
+                                .read<PaymentBloc>()
+                                .add(DeletePayment(payment.id));
+                          },
+                        ),
+                      );
                     },
-                    child: const Text("Pagar"),
                   );
                 },
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

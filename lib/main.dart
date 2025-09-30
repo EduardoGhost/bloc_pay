@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'features/payment/presentation/bloc/payment_bloc.dart';
 import 'features/payment/presentation/pages/payment_page.dart';
 
 void main() {
@@ -16,7 +18,10 @@ class BlocPayApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const PaymentPage(),
+      home: BlocProvider(
+        create: (_) => PaymentBloc(),
+        child: const PaymentPage(),
+      ),
     );
   }
 }

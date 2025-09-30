@@ -1,20 +1,26 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../domain/use_cases/process_payment.dart';
+import '../../domain/entities/payment_entity.dart';
 import 'payment_event.dart';
 import 'payment_state.dart';
 
 class PaymentBloc extends Bloc<PaymentEvent, PaymentState> {
-  final ProcessPayment processPayment;
+  PaymentBloc() : super(const PaymentInitial()) {
+    on<AddPayment>((event, emit) {
+      final currentPayments = List<PaymentEntity>.from(state is PaymentInitial
+          ? (state as PaymentInitial).payments
+          : (state as PaymentUpdated).payments);
 
-  PaymentBloc({required this.processPayment}) : super(PaymentInitial()) {
-    on<SubmitPayment>((event, emit) async {
-      emit(PaymentLoading());
-      try {
-        final payment = await processPayment.call(event.amount);
-        emit(PaymentSuccess(payment));
-      } catch (e) {
-        emit(PaymentFailure(e.toString()));
-      }
+      currentPayments.add(event.payment);
+      emit(PaymentUpdated(currentPayments));
+    });
+
+    on<DeletePayment>((event, emit) {
+      final currentPayments = List<PaymentEntity>.from(state is PaymentInitial
+          ? (state as PaymentInitial).payments
+          : (state as PaymentUpdated).payments);
+
+      currentPayments.removeWhere((p) => p.id == event.paymentId);
+      emit(PaymentUpdated(currentPayments));
     });
   }
 }
